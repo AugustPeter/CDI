@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Juros Compostos - CDI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+  body {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .container {
+    background: #fff;
+    border-radius: 16px;
+    padding: 30px;
+    max-width: 520px;
+    width: 100%;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+  }
+  h1 { font-size: 1.4rem; color: #1a2a3a; text-align: center; margin-bottom: 5px; }
+  .sub { text-align: center; color: #667; font-size: 0.85rem; margin-bottom: 25px; }
+  label { display: block; font-size: 0.85rem; color: #334; margin-bottom: 6px; font-weight: 600; }
+  input, select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e1e6eb;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 16px;
+    transition: border .2s;
+  }
+  input:focus, select:focus { outline: none; border-color: #2c5364; }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  button {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #11998e, #38ef7d);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .15s;
+  }
+  button:hover { transform: translateY(-2px); }
+  .results {
+    margin-top: 24px;
+    display: none;
+  }
+  .results.show { display: block; animation: fadeIn .4s; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: none;} }
+  .card {
+    background: #f5f8fa;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 4px solid #2c5364;
+  }
+  .card.juros { border-left-color: #38ef7d; background: #eefcf3; }
+  .card.total { border-left-color: #f39c12; background: #fff8e9; }
+  .card .label { font-size: 0.9rem; color: #445; }
+  .card .value { font-size: 1.15rem; font-weight: 700; color: #1a2a3a; }
+  .card.juros .value { color: #0d8a4f; }
+  .card.total .value { color: #c47f00; }
+  .aviso { font-size: 0.75rem; color: #889; text-align: center; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>💰 Calculadora de Juros Compostos</h1>
+  <p class="sub">CDI • Aportes mensais • Juros sobre juros</p>
+
+  <label for="inicial">Valor já investido (R$)</label>
+  <input type="number" id="inicial" placeholder="Ex: 1000" min="0" step="0.01" value="1000">
+
+  <label for="aporte">Aporte mensal (R$)</label>
+  <input type="number" id="aporte" placeholder="Ex: 500" min="0" step="0.01" value="500">
+
+  <div class="row">
+    <div>
+      <label for="tempo">Tempo</label>
+      <input type="number" id="tempo" placeholder="Ex: 12" min="1" value="12">
+    </div>
+    <div>
+      <label for="unidade">Unidade</label>
+      <select id="unidade">
+        <option value="meses">Meses</option>
+        <option value="anos">Anos</option>
+      </select>
+    </div>
+  </div>
+
+  <label for="cdi">Taxa CDI (% ao ano)</label>
+  <input type="number" id="cdi" placeholder="Ex: 10.75" min="0" step="0.01" value="10.75">
+
+  <label for="percentual">Percentual do CDI (%)</label>
+  <input type="number" id="percentual" placeholder="Ex: 100" min="0" step="0.01" value="100">
+
+  <button onclick="calcular()">Calcular</button>
+
+  <div class="results" id="results">
+    <div class="card">
+      <span class="label">💵 Total investido</span>
+      <span class="value" id="resInvestido">R$ 0,00</span>
+    </div>
+    <div class="card juros">
+      <span class="label">📈 Juros ganhos</span>
+      <span class="value" id="resJuros">R$ 0,00</span>
+    </div>
+    <div class="card total">
+      <span class="label">🏆 Montante final</span>
+      <span class="value" id="resTotal">R$ 0,00</span>
+    </div>
+    <p class="aviso">Cálculo com juros compostos mensais. Taxa CDI efetiva = CDI × % do CDI.</p>
+  </div>
+</div>
+
+<script>
+function formatarBRL(v) {
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function calcular() {
+  const inicial = parseFloat(document.getElementById('inicial').value) || 0;
+  const aporte = parseFloat(document.getElementById('aporte').value) || 0;
+  const tempo = parseInt(document.getElementById('tempo').value) || 0;
+  const unidade = document.getElementById('unidade').value;
+  const cdiAnual = parseFloat(document.getElementById('cdi').value) || 0;
+  const percentual = parseFloat(document.getElementById('percentual').value) || 0;
+
+  if (tempo <= 0) { alert('Informe um tempo válido.'); return; }
+
+  const meses = unidade === 'anos' ? tempo * 12 : tempo;
+
+  // Taxa CDI efetiva anual, convertida para mensal (juros compostos)
+  const taxaEfetivaAnual = (cdiAnual / 100) * (percentual / 100);
+  const taxaMensal = Math.pow(1 + taxaEfetivaAnual, 1/12) - 1;
+
+  // Montante com juros compostos:
+  // 1) Valor inicial rendendo
+  // 2) Aportes mensais (série de pagamentos)
+  let montante = inicial * Math.pow(1 + taxaMensal, meses);
+
+  if (aporte > 0 && taxaMensal > 0) {
+    montante += aporte * ((Math.pow(1 + taxaMensal, meses) - 1) / taxaMensal);
+  } else {
+    montante += aporte * meses;
+  }
+
+  const totalInvestido = inicial + (aporte * meses);
+  const juros = montante - totalInvestido;
+
+  document.getElementById('resInvestido').textContent = formatarBRL(totalInvestido);
+  document.getElementById('resJuros').textContent = formatarBRL(juros);
+  document.getElementById('resTotal').textContent = formatarBRL(montante);
+  document.getElementById('results').classList.add('show');
+}
+</script>
+
+</body>
+</html>
